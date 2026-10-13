@@ -90,3 +90,10 @@ CREATE TABLE order_details (
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (item_id) REFERENCES items(id)
 );
+
+-- ============================================================
+-- 第8回：ブルートフォース対策（ログイン試行回数の制限）のための拡張
+-- ============================================================
+ALTER TABLE users
+    ADD COLUMN failed_count INT NOT NULL DEFAULT 0 AFTER role,
+    ADD COLUMN locked_until DATETIME NULL AFTER failed_count;
