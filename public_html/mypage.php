@@ -6,6 +6,13 @@
 require_once __DIR__ . '/../includes/config.php';
 session_start();
 
+// ガード：ログインしていなければ、ログイン画面へ戻す
+if(!isset($_SESSION['user_id'])){
+    $_SESSION['login_error'] = '続けるにはログインが必要です';
+    header('Location: login.php');
+    exit;
+}
+
 $user = null;
 if (isset($_SESSION['user_id'])) {
     $stmt = $pdo->prepare('SELECT name, role FROM users WHERE id = ?');
@@ -29,6 +36,9 @@ if (isset($_SESSION['user_id'])) {
         <?php if ($user): ?>
             <h1>ようこそ、<?= htmlspecialchars($user['name']) ?> さん</h1>
             <p>会員種別：<?= $user['role'] === 'admin' ? '管理者' : '一般会員' ?></p>
+            <?php if ($user['role'] === 'admin'): ?>
+                <p><a class="btn" href="admin/item-list.php">商品管理へ</a></p>
+            <?php endif; ?>
         <?php else: ?>
             <h1>ようこそ、ゲスト さん</h1>
             <p><a href="login.php">ログインする</a></p>
