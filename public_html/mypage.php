@@ -4,14 +4,9 @@
  * 未ログインでも開けてしまうのは第9回でガードを作るまでの仮の状態。
  */
 require_once __DIR__ . '/../includes/config.php';
-session_start();
-
-// ガード：ログインしていなければ、ログイン画面へ戻す
-if(!isset($_SESSION['user_id'])){
-    $_SESSION['login_error'] = '続けるにはログインが必要です';
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/../includes/auth.php';
+ 
+require_login();
 
 $user = null;
 if (isset($_SESSION['user_id'])) {
