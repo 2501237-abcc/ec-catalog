@@ -4,22 +4,9 @@
  */
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/upload_helper.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
-session_start();
- 
-// ① 認証：ログインしていなければ、ログイン画面へ戻す
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['login_error'] = '続けるにはログインが必要です';
-    header('Location: ../login.php');
-    exit;
-}
- 
-// ② 認可：管理者でなければ、ここで止める（403 = 権限が無い）
-if ($_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    echo 'このページにアクセスする権限がありません。<a href="../mypage.php">マイページへ戻る</a>';
-    exit;
-}
+require_admin();
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 
@@ -36,7 +23,6 @@ if (!$item) {
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // TODO（初級）: item-add.php と同様に、$_POST から値を取得しバリデーションする
     $name        = trim($_POST['name'] ?? '');
     $price       = trim($_POST['price'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -59,15 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        // TODO（初級）: items テーブルを UPDATE する（必ずプレースホルダを使うこと。WHERE id=? を忘れずに）
         $upd = $pdo->prepare(
             'UPDATE items SET name=?, price=?, description=?, image=?, stock=?, category=? WHERE id=?'
         );
         $upd->execute([$name, (int) $price, $description, $filename, (int) $stock, $category ?: null, $id]);
+
         header('Location: item-list.php');
         exit;
     }
 
+    // エラー時は入力値をそのまま画面へ戻す
     $item = array_merge($item, compact('name', 'price', 'description', 'stock', 'category'));
 }
 ?>
@@ -83,7 +70,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="../index.php">Tsuchi-to-Hi</a>
         <a class="btn" style="border: 1px solid; padding: .4rem .8rem;" href="../logout.php">ログアウト</a>
     </header>
-
     <main>
         <h1>商品編集</h1>
 

@@ -4,39 +4,23 @@
  */
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/upload_helper.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
-session_start();
- 
-// ① 認証：ログインしていなければ、ログイン画面へ戻す
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['login_error'] = '続けるにはログインが必要です';
-    header('Location: ../login.php');
-    exit;
-}
- 
-// ② 認可：管理者でなければ、ここで止める（403 = 権限が無い）
-if ($_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    echo 'このページにアクセスする権限がありません。<a href="../mypage.php">マイページへ戻る</a>';
-    exit;
-}
+require_admin();
+
 $errors = [];
 $name = $price = $description = $stock = $category = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // TODO（初級）: $_POST から name, price, description, stock, category を取得する（trim すること）
     $name        = trim($_POST['name'] ?? '');
     $price       = trim($_POST['price'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $stock       = trim($_POST['stock'] ?? '');
     $category    = trim($_POST['category'] ?? '');
 
-    if ($name === '')           $errors[] = '商品名を入力してください';
-    if (!ctype_digit($price))   $errors[] = '価格は0以上の整数で入力してください';
-    if (!ctype_digit($stock))   $errors[] = '在庫数は0以上の整数で入力してください';
-
-    // TODO（初級）: 入力内容の基本チェック
-    //   name が空、price/stock が数字でない場合はそれぞれ $errors[] にメッセージを追加する
+    if ($name === '')                       $errors[] = '商品名を入力してください';
+    if (!ctype_digit($price))               $errors[] = '価格は0以上の整数で入力してください';
+    if (!ctype_digit($stock))               $errors[] = '在庫数は0以上の整数で入力してください';
 
     $filename = null;
     if (empty($errors)) {
@@ -50,12 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        // TODO（初級）: items テーブルへ INSERT する（必ずプレースホルダを使うこと）
         $stmt = $pdo->prepare(
             'INSERT INTO items (name, price, description, image, stock, category) VALUES (?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([$name, (int) $price, $description, $filename, (int) $stock, $category ?: null]);
-        
+
         header('Location: item-list.php');
         exit;
     }
@@ -73,7 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <a href="../index.php">Tsuchi-to-Hi</a>
         <a class="btn" style="border: 1px solid; padding: .4rem .8rem;" href="../logout.php">ログアウト</a>
     </header>
-
     <main>
         <h1>商品登録</h1>
 

@@ -47,11 +47,12 @@ if (!$errors) {
 // 1つでもあれば、理由を預けて登録画面へ戻す
 if ($errors) {
     $_SESSION['register_errors'] = $errors;
+    $_SESSION['register_old']    = ['name' => $name, 'email' => $email];  // パスワードは戻さない
     header('Location: register.php');
     exit;
 }
 
-// 登録（パスワードはまだ平文。第11回でハッシュ化する）
+// 登録：パスワードはハッシュ化してから保存する（元には戻せない）
 $hash = password_hash($password, PASSWORD_DEFAULT);
 $stmt = $pdo->prepare('INSERT INTO users (email, password, name) VALUES (?, ?, ?)');
 $stmt->execute([$email, $hash, $name]);
