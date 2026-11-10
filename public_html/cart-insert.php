@@ -36,7 +36,6 @@ $stmt = $pdo->prepare(
     'INSERT INTO cart (user_id, item_id, quantity) VALUES (?, ?, 1)'
 );
 $stmt->execute([$userId, $itemId]);
-
 $_SESSION['cart_message'] = 'カートに1個追加しました';
 header('Location: item.php?id=' . $itemId);
 exit;

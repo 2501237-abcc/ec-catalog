@@ -28,6 +28,7 @@ if ($user && $user['locked_until'] !== null && strtotime($user['locked_until']) 
     header('Location: login.php');
     exit;
 }
+
 // ② いる かつ パスワード一致 → 成功
 if ($user && password_verify($password, $user['password'])) {
     $reset = $pdo->prepare('UPDATE users SET failed_count = 0, locked_until = NULL WHERE id = ?');
@@ -49,6 +50,7 @@ if ($user) {
     $upd = $pdo->prepare('UPDATE users SET failed_count = ?, locked_until = ? WHERE id = ?');
     $upd->execute([$newCount, $lockUntil, $user['id']]);
 }
+
 // ③ 失敗はすべてここ。理由を区別しない同じ一文
 $_SESSION['login_error'] = $genericError;
 header('Location: login.php');

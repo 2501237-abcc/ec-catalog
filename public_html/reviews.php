@@ -2,8 +2,7 @@
 /**
  * reviews.php ― 商品レビューの一覧と投稿フォーム（第12回 配布）
  *
- * ⚠ このファイルには、わざと XSS の穴を1か所残してある。
- *    第12回の初級で見つけて直す。
+ * 第12回：レビュー本文も htmlspecialchars() を通して出す（XSS 対策）。
  */
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth.php';

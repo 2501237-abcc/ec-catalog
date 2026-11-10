@@ -1,22 +1,25 @@
 <?php
 /**
- * items.php ― 商品一覧・キーワード検索・カテゴリ絞り込み・ページネーション
+ * items.php ― 商品一覧・キーワード検索・カテゴリ絞り込み・並び替え・ページネーション
  *
- * 初級：一覧表示 → すでに動きます
- * 中級：LIKE検索・カテゴリ絞り込み・0件時の表示 → TODOを埋めてください
- * 上級：検索条件を保ったままのページネーション → TODOを埋めてください
+ * 初級：一覧表示
+ * 中級：LIKE検索・カテゴリ絞り込み・0件時の表示
+ * 上級：検索条件を保ったままのページネーション
+ *
+ * 第5回 feature/item-sort：並び替え機能を追加
+ * （小さな機能追加をブランチで実装しPRを作る、という第5回の演習素材）
  */
 require_once __DIR__ . '/../includes/config.php';
 
 // ---- ① 検索条件の取得 ----------------------------------------------------
-// TODO: $_GET から keyword（検索キーワード）と category（カテゴリ）を取得する
 $keyword  = trim($_GET['keyword'] ?? '');
 $category = trim($_GET['category'] ?? '');
+$page     = max(1, (int) ($_GET['page'] ?? 1));
+$perPage  = 9;
 
-// TODO（上級）: $_GET から page（ページ番号）を取得する。1未満なら1にする。
-$page    = max(1, (int) ($_GET['page'] ?? 1));
-$perPage = 9;
-
+// 並び替え：ORDER BYの列名・方向はプレースホルダにできないため、
+// 必ずホワイトリスト（許可リスト）に照合してから使う。
+// $_GET['sort'] の値をそのままORDER BYに埋め込むのは、SQLインジェクションの危険がある。
 $sortOptions = [
     'new'        => 'created_at DESC',
     'price_asc'  => 'price ASC',
@@ -25,16 +28,13 @@ $sortOptions = [
 $sort    = $_GET['sort'] ?? 'new';
 $orderBy = $sortOptions[$sort] ?? $sortOptions['new'];
 
-// ---- ② WHERE句を動的に組み立てる（必ずプレースホルダを使うこと）------------
-// TODO（中級）: $keyword が空でなければ "name LIKE :keyword" 相当の条件を追加する
-//   ヒント：LIKE検索では % と _ がワイルドカードとして特別な意味を持つため、
-//   ユーザー入力にこれらの文字が含まれていた場合はエスケープしてから渡すこと。
-// TODO（中級）: $category が空でなければ "category = :category" 相当の条件を追加する
+// ---- ② WHERE句を動的に組み立てる（必ずプレースホルダを使う）----------------
 $conditions = [];
 $params     = [];
 
 if ($keyword !== '') {
-    // LIKE検索では % と _ が特別な意味を持つため、エスケープしてから渡す
+    // LIKE検索でワイルドカード文字（% と _）が特別な意味を持ってしまうため、
+    // 検索キーワードに含まれていた場合はエスケープしてから渡す。
     $escapedKeyword = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $keyword);
     $conditions[]   = "name LIKE :keyword ESCAPE '\\\\'";
     $params['keyword'] = '%' . $escapedKeyword . '%';
@@ -47,9 +47,7 @@ if ($category !== '') {
 
 $whereSql = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-// ---- ③ 該当件数を取得し、総ページ数を計算する（上級）------------------------
-// TODO: COUNT(*) で件数を取得し、$perPage で割って総ページ数を求める
-// TODO: $page が総ページ数を超えていたら、総ページ数に丸める（末尾ページ対策）
+// ---- ③ 該当件数を取得し、総ページ数を計算する ------------------------------
 $countStmt = $pdo->prepare("SELECT COUNT(*) FROM items {$whereSql}");
 $countStmt->execute($params);
 $totalCount = (int) $countStmt->fetchColumn();
@@ -57,7 +55,9 @@ $totalPages = max(1, (int) ceil($totalCount / $perPage));
 $page       = min($page, $totalPages); // 存在しない末尾ページへの飛び越し対策
 $offset     = ($page - 1) * $perPage;
 
-// ---- ④ 商品一覧を取得する（初級）--------------------------------------------
+// ---- ④ 商品一覧を取得する ---------------------------------------------------
+// LIMIT/OFFSETはプレースホルダにすると型の扱いが環境依存になりやすいため、
+// int化した値を直接埋め込む（ユーザー入力を直接使っていない点に注意）。
 $sql = "SELECT id, name, price, image, stock, category
         FROM items
         {$whereSql}
@@ -67,19 +67,18 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $items = $stmt->fetchAll();
 
+// カテゴリ一覧（絞り込みのプルダウン用）
 $categories = $pdo->query('SELECT DISTINCT category FROM items WHERE category IS NOT NULL ORDER BY category')
                    ->fetchAll(PDO::FETCH_COLUMN);
 
-// TODO（上級）: ページ送りリンクで検索条件を保持するためのクエリ文字列を組み立てる関数を作る
+// ページ送りリンクで検索条件を保持するためのクエリ文字列を組み立てる
 function buildQuery(array $overrides = []): string
 {
-    // ヒント：$_GET の keyword / category / page を土台に、$overrides で上書きする
-    $base = ['keyword' => $_GET['keyword'] ?? '', 'category' => $_GET['category'] ?? '', 'page' => $_GET['page'] ?? 1];
     $base = [
-        'keyword'   => $_GET['keyword'] ?? '',
-        'category'   => $_GET['category'] ?? '',
-        'sort'   => $_GET['sort'] ?? 'new',
-        'page'   => $_GET['page'] ?? 1,
+        'keyword'  => $_GET['keyword'] ?? '',
+        'category' => $_GET['category'] ?? '',
+        'sort'     => $_GET['sort'] ?? 'new',
+        'page'     => $_GET['page'] ?? 1,
     ];
     return http_build_query(array_merge($base, $overrides));
 }
@@ -116,8 +115,7 @@ function buildQuery(array $overrides = []): string
         </form>
 
         <?php if (empty($items)): ?>
-            <!-- TODO（中級）: 該当0件の時に、ユーザーに分かりやすいメッセージを表示する -->
-            <p class="empty-state">「<?= htmlspecialchars($keyword) ?>」に該当する商品が見つかりませんでした。<!-- TODO --></p>
+            <p class="empty-state">該当する商品が見つかりませんでした。</p>
         <?php else: ?>
             <div class="item-grid">
                 <?php foreach ($items as $item): ?>
@@ -129,8 +127,6 @@ function buildQuery(array $overrides = []): string
                 <?php endforeach; ?>
             </div>
 
-            <!-- TODO（上級）: ページネーションのUIを作る（前へ／各ページ番号／次へ）。
-                 buildQuery() を使って検索条件を保ったままリンクを組み立てること -->
             <div class="pagination">
                 <?php if ($page > 1): ?>
                     <a href="items.php?<?= buildQuery(['page' => $page - 1]) ?>">‹ 前へ</a>

@@ -7,8 +7,8 @@
  */
 require_once __DIR__ . '/../../includes/config.php';
 require_once __DIR__ . '/../../includes/auth.php';
- 
-require_login();
+
+require_admin();
 
 $items = $pdo->query('SELECT id, name, price, stock, category FROM items ORDER BY created_at DESC')->fetchAll();
 ?>
